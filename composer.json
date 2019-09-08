@@ -1,0 +1,10 @@
+{
+	"autoload": {
+		"psr-4": {
+			"CommissionCalc\\": "app"
+		}
+	},
+	"require": {
+		"phpunit/phpunit": "^7.3"
+	}
+}
