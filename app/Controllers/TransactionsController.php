@@ -42,32 +42,29 @@ class TransactionsController
     public function processRequest($filename)
     {
         $this->transactionRepository->loadFromFile($filename);
-		
-		foreach($this->transactionRepository->getAll() as $transaction){
-		
-			// Calculate commission
-			$commission = $this->calculateCommission($transaction);
-			
-			// Ceiling to the closest bond
-			$significance = pow(10, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
-			$commission = ceil($commission * $significance) / $significance;
-
-			// Print out
-			$this->printCommission($commission, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
-		}
-
+        $transactions = $this->transactionRepository->getAll();
+        $this->countCommissions($transactions);
     }
 
-    private function calculateCommission(Transaction $transaction)
+    private function countCommissions(array $transactions)
     {
-		
-		if ($transaction->getTransactionType() === Transaction::CASH_IN) {
+        foreach ($transactions as $transaction) {
 
-			return $this->cashInCommission($transaction);
-		}
-			
-		return $this->cashOutCommission($transaction);
-		
+            if ($transaction->getTransactionType() === Transaction::CASH_IN) {
+
+                $commission = $this->cashInCommission($transaction);
+            } else {
+
+                $commission = $this->cashOutCommission($transaction);
+            }
+
+            // Ceiling to the closest bond
+            $significance = pow(10, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
+            $commission = ceil($commission * $significance) / $significance;
+
+            // Print out
+            $this->printCommission($commission, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
+        }
     }
 
     private function cashInCommission(Transaction $transaction)
@@ -77,9 +74,9 @@ class TransactionsController
 
         if ($commission > $convertedLimit) {
             return $convertedLimit;
+        } else {
+            return $commission;
         }
-		
-        return $commission;
     }
 
     /**
@@ -96,13 +93,11 @@ class TransactionsController
 
             $commission = $transaction->getTransactionAmount() * $this->config['cashOutCommissionPercentLegal'];
             $convertedLimit = $this->convertCurrency($transaction, $this->config['cashOutCommissionLegalLimitMin']);
-            
-			if ($commission < $convertedLimit) {
+            if ($commission < $convertedLimit) {
                 return $convertedLimit;
+            } else {
+                return $commission;
             }
-            
-			return $commission;
-
         }
 
         if ($transactionClient->getClientType() === Client::CLIENT_TYPE_NATURAL) {
@@ -135,17 +130,16 @@ class TransactionsController
             if ($transactionsPerWeek >= $this->config['cashOutCommissionNormalFreeTransactions']) {
                 $commission = $transaction->getTransactionAmount() * $this->config['cashOutCommissionPercentNormal'];
                 return $commission;
+            } else {
+                if ($transactionsPerWeekAmount > $this->config['cashOutCommissionNormalDiscount']) {
+                    $commission = $transaction->getTransactionAmount() * $this->config['cashOutCommissionPercentNormal'];
+                    return $commission;
+                } else {
+                    $amount = max($this->convertCurrency($transaction) + $transactionsPerWeekAmount - $this->config['cashOutCommissionNormalDiscount'], 0);
+                    $commission = $amount * $this->config['cashOutCommissionPercentNormal'];
+                    return $this->convertCurrency($transaction, $commission);
+                }
             }
-			
-			if ($transactionsPerWeekAmount > $this->config['cashOutCommissionNormalDiscount']) {
-				$commission = $transaction->getTransactionAmount() * $this->config['cashOutCommissionPercentNormal'];
-				return $commission;
-			}
-			
-			$amount = max($this->convertCurrency($transaction) + $transactionsPerWeekAmount - $this->config['cashOutCommissionNormalDiscount'], 0);
-			$commission = $amount * $this->config['cashOutCommissionPercentNormal'];
-			return $this->convertCurrency($transaction, $commission);
-            
         }
 
         throw new Exception("Unkown Client type");
