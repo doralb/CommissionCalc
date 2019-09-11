@@ -43,30 +43,30 @@ class TransactionsController
     {
         $this->transactionRepository->loadFromFile($filename);
 		
-		foreach($this->transactionRepository->getAll() as $transaction){
-		
-			// Calculate commission
-			$commission = $this->calculateCommission($transaction);
-			
-			// Ceiling to the closest bond
-			$significance = pow(10, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
-			$commission = ceil($commission * $significance) / $significance;
+	foreach($this->transactionRepository->getAll() as $transaction){
 
-			// Print out
-			$this->printCommission($commission, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
-		}
+		// Calculate commission
+		$commission = $this->calculateCommission($transaction);
+
+		// Ceiling to the closest bond
+		$significance = pow(10, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
+		$commission = ceil($commission * $significance) / $significance;
+
+		// Print out
+		$this->printCommission($commission, $this->config['currencies'][$transaction->getCurrency()]['decimalPrecision']);
+	}
 
     }
 
     private function calculateCommission(Transaction $transaction)
     {
 		
-		if ($transaction->getTransactionType() === Transaction::CASH_IN) {
+	if ($transaction->getTransactionType() === Transaction::CASH_IN) {
 
-			return $this->cashInCommission($transaction);
-		}
-			
-		return $this->cashOutCommission($transaction);
+		return $this->cashInCommission($transaction);
+	}
+
+	return $this->cashOutCommission($transaction);
 		
     }
 
